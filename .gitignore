@@ -24,10 +24,10 @@ broadcast/
 contracts/out/
 contracts/node_modules/
 
-# Frontend
-frontend/.next/
-frontend/node_modules/
-frontend/out/
-frontend/build/
-frontend/.vercel/
-frontend/*.tsbuildinfo
+# App at repo root
+/.next/
+/node_modules/
+/out/
+/build/
+/.vercel/
+/*.tsbuildinfo

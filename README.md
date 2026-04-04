@@ -4,7 +4,7 @@ Automated DCA and auto-compound protocol concept for Initia.
 
 This repository is structured to match the DripFi PRD and now includes:
 
-- `frontend/`: Next.js app with a landing page and dashboard route
+- root Next.js app: landing page and dashboard route for the Vercel deployment target
 - `contracts/`: Solidity contracts for the DCA vault, swap router, and compound engine
 - `.initia/submission.json`: local submission scaffold for hackathon packaging
 - `foundry.toml`: Foundry configuration aligned with the `contracts/` layout
@@ -14,14 +14,14 @@ This repository is structured to match the DripFi PRD and now includes:
 
 The repository now reflects the PRD at the scaffold and local-demo level:
 
-- Frontend MVP screens exist for wallet onboarding, strategy creation, dashboard monitoring, and PRD sync status
+- Root app MVP screens exist for wallet onboarding, strategy creation, dashboard monitoring, and PRD sync status
 - InterwovenKit provider wiring is included so wallet, bridge, autosign, and `.init` identity flows can be connected from the UI
 - Solidity contracts, local Node-based contract tests, and deploy scripts are included for the DCA protocol core
 
 The remaining work before a final hackathon submission is still deployment and live integration:
 
 - deploy contracts on an Initia MiniEVM appchain
-- set real contract addresses and chain endpoints in frontend env vars
+- set real contract addresses and chain endpoints in root app env vars
 - verify live wallet, bridge, and autosign flows against the deployed appchain
 - record the demo video and finalize public deployment
 
@@ -41,13 +41,13 @@ DripFi/
 │   │   └── SwapRouter.sol
 │   └── test/
 │       └── DCAVault.t.sol
-├── frontend/
-│   ├── src/
-│   │   ├── app/
-│   │   ├── components/
-│   │   ├── hooks/
-│   │   └── lib/
-│   └── package.json
+├── public/
+├── src/
+│   ├── app/
+│   ├── components/
+│   ├── hooks/
+│   └── lib/
+├── package.json
 ├── DripFi_PRD_EN.md
 ├── README.md
 └── foundry.toml
@@ -56,7 +56,7 @@ DripFi/
 ## Frontend Setup
 
 ```powershell
-cd C:\Users\BTC_SEANA\Downloads\DripFi\frontend
+cd <repo-root>
 copy .env.example .env.local
 npm.cmd install
 npm.cmd run dev
@@ -69,7 +69,7 @@ Open:
 
 ## Frontend Env
 
-These values can be configured in `frontend/.env.local`:
+These values can be configured in `.env.local` at the repo root:
 
 - `NEXT_PUBLIC_APPCHAIN_ID`
 - `NEXT_PUBLIC_CHAIN_NAME`
@@ -103,7 +103,7 @@ forge test
 ### Option B: Bundled Node Tooling
 
 ```powershell
-cd C:\Users\BTC_SEANA\Downloads\DripFi\contracts
+cd <repo-root>\contracts
 copy .env.example .env
 npm.cmd install
 npm.cmd run build
@@ -113,16 +113,16 @@ npm.cmd run test
 To deploy with the Node script:
 
 ```powershell
-cd C:\Users\BTC_SEANA\Downloads\DripFi\contracts
+cd <repo-root>\contracts
 $env:JSON_RPC_URL="https://your-minievm-json-rpc"
 $env:PRIVATE_KEY="0x..."
 $env:APPCHAIN_ID="dripfi-1"
-$env:EXPORT_FRONTEND_ENV="true"
-npm.cmd run deploy -- --export-frontend
+$env:EXPORT_ROOT_ENV="true"
+npm.cmd run deploy -- --export-root-env
 ```
 
-This deploy flow writes a deployment manifest into `contracts/deployments/` and can update `frontend/.env.local` automatically.
+This deploy flow writes a deployment manifest into `contracts/deployments/` and can update the root `.env.local` automatically.
 
 ## PRD Sync
 
-The source PRD lives at [DripFi_PRD_EN.md](C:/Users/BTC_SEANA/Downloads/DripFi/DripFi_PRD_EN.md). It includes a sync snapshot that matches the repository state created in this scaffold.
+The source PRD lives at `./DripFi_PRD_EN.md`. It includes a sync snapshot that matches the repository state created in this scaffold.

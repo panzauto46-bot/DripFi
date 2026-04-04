@@ -126,9 +126,15 @@ async function main() {
   const deploymentPath = path.join(deploymentsDir, `${appchainId}.json`);
   fs.writeFileSync(deploymentPath, `${JSON.stringify(deployment, null, 2)}\n`);
 
-  if (process.argv.includes("--export-frontend") || process.env.EXPORT_FRONTEND_ENV === "true") {
-    const frontendEnvPath = path.resolve(contractsRoot, "..", "frontend", ".env.local");
-    upsertEnvFile(frontendEnvPath, {
+  const shouldExportAppEnv =
+    process.argv.includes("--export-frontend") ||
+    process.argv.includes("--export-root-env") ||
+    process.env.EXPORT_FRONTEND_ENV === "true" ||
+    process.env.EXPORT_ROOT_ENV === "true";
+
+  if (shouldExportAppEnv) {
+    const appEnvPath = path.resolve(contractsRoot, "..", ".env.local");
+    upsertEnvFile(appEnvPath, {
       NEXT_PUBLIC_APPCHAIN_ID: appchainId,
       NEXT_PUBLIC_RPC_URL: rpcNodeUrl,
       NEXT_PUBLIC_REST_URL: restUrl,
@@ -140,7 +146,7 @@ async function main() {
       NEXT_PUBLIC_USDC_ADDRESS: deployment.contracts.usdc,
       NEXT_PUBLIC_INIT_TOKEN_ADDRESS: deployment.contracts.initToken,
     });
-    console.log(`Updated frontend env at ${frontendEnvPath}`);
+    console.log(`Updated root app env at ${appEnvPath}`);
   }
 
   console.log(JSON.stringify(deployment, null, 2));

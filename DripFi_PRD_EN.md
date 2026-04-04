@@ -241,13 +241,13 @@ dripfi/
 │   │   └── CompoundEngine.sol
 │   └── test/
 │       └── DCAVault.t.sol
-├── frontend/
-│   ├── src/
-│   │   ├── app/
-│   │   ├── components/
-│   │   ├── hooks/
-│   │   └── lib/
-│   └── package.json
+├── public/
+├── src/
+│   ├── app/
+│   ├── components/
+│   ├── hooks/
+│   └── lib/
+├── package.json
 ├── README.md                    <- required
 └── foundry.toml
 ```
@@ -285,10 +285,10 @@ This PRD is synchronized with the current local repository scaffold:
 |---|---|---|
 | Frontend landing page | Scaffolded | Judge-facing product pitch now lives in the Next.js app |
 | Frontend dashboard page | Live-ready locally | Strategy composer, wallet panel, autosign controls, and strategy action buttons are wired for real MiniEVM `MsgCall` flows once addresses are configured |
-| InterwovenKit integration | Wired | Provider, wallet connect, bridge entry, username identity, and MiniEVM autosign flows are included in the frontend |
+| InterwovenKit integration | Wired | Provider, wallet connect, bridge entry, username identity, and MiniEVM autosign flows are included in the root web app |
 | Smart contracts | Implemented + tested locally | `DCAVault.sol`, `SwapRouter.sol`, `CompoundEngine.sol`, and local contract tests now cover create/fund/execute/pause/resume/stop and compound fee behavior |
 | `.initia/submission.json` | Present | Local scaffold exists and still needs final schema verification before submission |
-| README | Present | Root and frontend README files now describe the repo layout, contract tooling, and deploy flow |
+| README | Present | Root README describes the repo layout, contract tooling, and deploy flow |
 | Testnet deployment | Pending | Contract deployment and live chain verification still require a target MiniEVM JSON-RPC endpoint plus deployer credentials |
 | Demo video | Pending | Not yet produced |
 

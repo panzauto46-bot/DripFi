@@ -1,0 +1,216 @@
+"use client";
+
+import { intervalLabels, dripfiConfig, strategyTemplates } from "@/lib/dripfi-config";
+import { useDripfiActions } from "@/hooks/use-dripfi-actions";
+import { useDripfiDemoState } from "@/hooks/use-dripfi-demo-state";
+
+export function StrategyComposer() {
+  const { draft, metrics, updateDraft, applyTemplate, isPending } =
+    useDripfiDemoState();
+  const {
+    status,
+    isPending: isActionPending,
+    autoSignEnabled,
+    createStrategyFromDraft,
+    openRealBridge,
+    hasLiveVault,
+  } = useDripfiActions();
+
+  return (
+    <section className="panel rounded-[1.8rem] p-5 sm:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-[var(--muted)]">
+            Strategy Builder
+          </p>
+          <h2 className="mt-2 font-display text-[2rem] tracking-[-0.04em] text-[var(--ink)]">
+            Compose a recurring DCA
+          </h2>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--muted)]">
+            Pick a template, set size and cadence, then send one transaction.
+          </p>
+        </div>
+        <div
+          className={`rounded-full border px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.24em] ${
+            autoSignEnabled
+              ? "border-[var(--mint)] bg-[var(--mint-soft)] text-[var(--mint)]"
+              : "border-[var(--line)] text-[var(--muted)]"
+          }`}
+        >
+          {autoSignEnabled ? "Autosign enabled" : "Manual confirm"}
+        </div>
+      </div>
+
+      <div className="mt-5 flex flex-wrap gap-2">
+        {strategyTemplates.map((template) => (
+          <button
+            key={template.id}
+            type="button"
+            onClick={() => applyTemplate(template.id)}
+            className={`min-w-[9.5rem] flex-1 rounded-[1.2rem] border px-4 py-3 text-left ${
+              draft.templateId === template.id
+                ? "border-[var(--mint)] bg-white/8"
+                : "border-white/8 bg-white/4"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium text-[var(--ink)]">{template.name}</p>
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${
+                  draft.templateId === template.id ? "bg-[var(--mint)]" : "bg-white/15"
+                }`}
+              />
+            </div>
+            <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--gold)]">
+              {intervalLabels[template.interval]}
+            </p>
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <InputCard
+          label="Funding token"
+          value={draft.tokenIn}
+          onChange={(value) => updateDraft("tokenIn", value)}
+        />
+        <InputCard
+          label="Target token"
+          value={draft.tokenOut}
+          onChange={(value) => updateDraft("tokenOut", value)}
+        />
+        <InputCard
+          label="Amount per order"
+          value={draft.amountPerOrder}
+          suffix="USD"
+          onChange={(value) => updateDraft("amountPerOrder", value)}
+        />
+        <InputCard
+          label="Strategy budget"
+          value={draft.budget}
+          suffix="USD"
+          onChange={(value) => updateDraft("budget", value)}
+        />
+
+        <div className="rounded-[1.4rem] border border-white/8 bg-white/4 p-4 sm:col-span-2">
+          <div className="flex items-center justify-between gap-3">
+            <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-[var(--muted)]">
+              Interval
+            </p>
+            <p className="text-xs text-[var(--muted)]">Recurring execution cadence</p>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(["hourly", "daily", "weekly"] as const).map((interval) => (
+              <button
+                key={interval}
+                type="button"
+                onClick={() => updateDraft("interval", interval)}
+                className={`rounded-full border px-4 py-2 text-sm font-medium ${
+                  draft.interval === interval
+                    ? "border-[var(--mint)] bg-white/10 text-[var(--mint)]"
+                    : "border-white/10 text-[var(--muted)]"
+                }`}
+              >
+                {intervalLabels[interval]}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-[1.5rem] border border-[var(--line)] bg-black/15 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-[var(--muted)]">
+            Live preview
+          </p>
+          <span className="text-xs text-[var(--muted)]">
+            {hasLiveVault ? "On-chain ready" : "Scaffold mode"}
+          </span>
+        </div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <PreviewRow label="Orders / month" value={String(metrics.runsPerMonth)} />
+          <PreviewRow
+            label="Monthly spend"
+            value={`$${metrics.projectedMonthlySpend.toFixed(0)}`}
+          />
+          <PreviewRow label="Runway" value={`${metrics.projectedRunway} orders`} />
+          <PreviewRow
+            label="Mode"
+            value={hasLiveVault ? "Ready for chain" : "Local scaffold"}
+          />
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() =>
+              createStrategyFromDraft(
+                draft,
+                metrics.intervalInSeconds,
+                dripfiConfig.chain.native_assets[0].decimals,
+              )
+            }
+            className="rounded-full bg-[var(--mint)] px-4 py-2 text-sm font-medium text-slate-950 hover:-translate-y-0.5 hover:bg-[#e7e7e7]"
+          >
+            {isPending || isActionPending ? "Submitting..." : "Create + fund"}
+          </button>
+          <button
+            type="button"
+            onClick={() => openRealBridge(draft.budget)}
+            className="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-medium text-[var(--ink)] hover:-translate-y-0.5 hover:border-[var(--gold)] hover:text-[var(--gold)]"
+          >
+            Bridge capital
+          </button>
+        </div>
+
+        <p className="mt-3 text-xs leading-6 text-[var(--muted)]">{status}</p>
+        {!hasLiveVault ? (
+          <p className="mt-1 text-xs leading-6 text-[var(--gold)]">
+            Live mode needs deployed addresses in `.env.local`.
+          </p>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function InputCard({
+  label,
+  value,
+  suffix,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  suffix?: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="rounded-[1.4rem] border border-white/8 bg-white/4 p-4">
+      <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-[var(--muted)]">
+        {label}
+      </p>
+      <div className="mt-2 flex items-center gap-3">
+        <input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="w-full bg-transparent text-base font-medium text-[var(--ink)] outline-none"
+        />
+        {suffix ? (
+          <span className="font-mono text-[11px] uppercase tracking-[0.24em] text-[var(--gold)]">
+            {suffix}
+          </span>
+        ) : null}
+      </div>
+    </label>
+  );
+}
+
+function PreviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between rounded-2xl border border-white/8 bg-white/4 px-3 py-2.5 text-sm">
+      <span className="text-[var(--muted)]">{label}</span>
+      <span className="font-medium text-[var(--ink)]">{value}</span>
+    </div>
+  );
+}

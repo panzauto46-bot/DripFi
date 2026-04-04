@@ -1,0 +1,19 @@
+{
+  "project_name": "DripFi",
+  "track": "DeFi",
+  "chain_id": "dripfi-1",
+  "summary": "Automated DCA and auto-compound protocol on Initia",
+  "description": "DripFi lets users automate recurring token purchases with Initia autosign, bridge capital from other chains, and monitor strategy performance from a single dashboard.",
+  "repo_status": "local-scaffold",
+  "frontend_local_url": "http://127.0.0.1:3000",
+  "frontend_routes": [
+    "/",
+    "/dashboard"
+  ],
+  "native_features": [
+    "Auto-signing / Session UX",
+    "Interwoven Bridge",
+    "Initia Usernames (.init)"
+  ],
+  "notes": "Replace placeholder links and confirm the final submission schema before hackathon hand-in."
+}

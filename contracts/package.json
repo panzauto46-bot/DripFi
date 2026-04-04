@@ -1,0 +1,17 @@
+{
+  "name": "dripfi-contracts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node ./script/compile.mjs",
+    "test": "node --test ./test-js/**/*.test.mjs",
+    "deploy": "node ./script/deploy.mjs"
+  },
+  "dependencies": {
+    "ethers": "^6.15.0",
+    "solc": "0.8.24"
+  },
+  "devDependencies": {
+    "ganache": "^7.9.2"
+  }
+}

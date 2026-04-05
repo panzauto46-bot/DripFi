@@ -17,5 +17,5 @@
     "Interwoven Bridge",
     "Initia Usernames (.init)"
   ],
-  "notes": "Public frontend is live on Vercel. Configure live contract addresses plus the automation relayer env vars before final submission."
+  "notes": "Public frontend is live on Vercel. Windows and WSL bootstrap helpers for the MiniEVM rollout now live under scripts/initia/. Configure live contract addresses plus the automation relayer env vars before final submission."
 }

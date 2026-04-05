@@ -32,6 +32,23 @@ The remaining work before a final hackathon submission is still deployment and l
 - verify live wallet, bridge, autosign, and background execution flows against the deployed appchain
 - record the demo video and finalize public deployment
 
+## Windows Initia Bootstrap
+
+This repo now includes Windows + WSL helper files for the Initia rollout path:
+
+- `scripts/initia/windows-post-reboot-check.ps1`
+- `scripts/initia/bootstrap-wsl.sh`
+- `scripts/initia/launch-dripfi-rollup.md`
+- `scripts/initia/set-live-env.ps1`
+
+Recommended flow on this machine:
+
+1. Reboot Windows once so the WSL feature activation completes.
+2. Run `powershell -ExecutionPolicy Bypass -File scripts/initia/windows-post-reboot-check.ps1`
+3. Start Ubuntu with `ubuntu2404.exe`
+4. Enter WSL in the repo and run `bash scripts/initia/bootstrap-wsl.sh`
+5. Follow `scripts/initia/launch-dripfi-rollup.md`
+
 ## Repository Layout
 
 ```text

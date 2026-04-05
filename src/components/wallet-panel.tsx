@@ -131,7 +131,8 @@ export function WalletPanel({
       {!automationRelayerConfigured ? (
         <p className="mt-1 text-xs leading-6 text-[var(--gold)]">
           Add `NEXT_PUBLIC_AUTOMATION_RELAYER_ADDRESS` and the matching server relayer key in
-          Vercel to keep due strategies executing after the tab closes.
+          Vercel, then connect an external scheduler or Vercel Pro cron to keep due strategies
+          executing after the tab closes.
         </p>
       ) : null}
     </section>

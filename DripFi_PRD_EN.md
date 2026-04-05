@@ -287,7 +287,7 @@ This PRD is synchronized with the current repository state:
 | Frontend dashboard page | Live-ready | Strategy composer, wallet panel, automation controls, and strategy action buttons are wired for real MiniEVM `MsgCall` flows once addresses are configured |
 | InterwovenKit integration | Wired | Provider, wallet connect, bridge entry, username identity, and MiniEVM autosign flows are included in the root web app |
 | Smart contracts | Implemented + tested locally | `DCAVault.sol` now restricts execution to owners or approved relayers, and `CompoundEngine.sol` compounds into tracked principal balances with local tests covering the flow |
-| Background execution | Added | A Vercel cron route now scans for due strategies and executes them with an approved relayer once env vars are configured |
+| Background execution | Added | An executor route now scans for due strategies and can be driven by an external scheduler or a Vercel Pro cron job once env vars are configured |
 | `.initia/submission.json` | Present | Submission metadata includes the public Vercel URL, but still needs final schema verification before submission |
 | README | Present | Root README describes the repo layout, deploy flow, and automation executor setup |
 | Testnet deployment | Pending | Contract deployment and live chain verification still require a target MiniEVM JSON-RPC endpoint plus deployer credentials |
@@ -295,7 +295,7 @@ This PRD is synchronized with the current repository state:
 
 ### Important clarification
 
-The repository now matches the PRD at the **public frontend and integration-ready level**, but not yet at the **fully deployed hackathon submission level**. Live chain addresses, testnet deployment proof, relayer secrets in Vercel, and the final demo video are still outstanding.
+The repository now matches the PRD at the **public frontend and integration-ready level**, but not yet at the **fully deployed hackathon submission level**. Live chain addresses, testnet deployment proof, relayer secrets plus a production scheduler, and the final demo video are still outstanding.
 
 ---
 

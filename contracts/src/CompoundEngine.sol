@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {ISwapRouter} from "./interfaces/ISwapRouter.sol";
 import {SafeTransferLib} from "./libraries/SafeTransferLib.sol";
 import {Owned} from "./libraries/Owned.sol";
 
@@ -15,6 +16,7 @@ contract CompoundEngine is Owned {
         uint64 lastCompoundedAt;
         uint256 pendingRewards;
         uint256 compoundedAmount;
+        uint256 principalBalance;
         bool active;
     }
 
@@ -23,6 +25,8 @@ contract CompoundEngine is Owned {
     error InvalidInterval();
     error PositionInactive();
     error NotReady();
+    error RouterNotConfigured();
+    error InsufficientPrincipal();
 
     event PositionRegistered(
         uint256 indexed positionId,
@@ -37,10 +41,13 @@ contract CompoundEngine is Owned {
     event PositionStatusUpdated(uint256 indexed positionId, bool active);
     event CompoundFeeUpdated(uint16 compoundFeeBps);
     event FeeRecipientUpdated(address indexed feeRecipient);
+    event SwapRouterUpdated(address indexed router);
+    event PrincipalWithdrawn(uint256 indexed positionId, address indexed owner, uint256 amount);
 
     uint256 public positionCount;
     uint16 public compoundFeeBps = 500;
     address public feeRecipient;
+    ISwapRouter public swapRouter;
 
     mapping(uint256 positionId => Position) public positions;
     mapping(address owner => uint256[]) private ownerPositionIds;
@@ -70,6 +77,7 @@ contract CompoundEngine is Owned {
             lastCompoundedAt: 0,
             pendingRewards: 0,
             compoundedAmount: 0,
+            principalBalance: 0,
             active: true
         });
         ownerPositionIds[msg.sender].push(positionId);
@@ -98,14 +106,33 @@ contract CompoundEngine is Owned {
 
         uint256 pendingRewards = position.pendingRewards;
         uint256 feeAmount = pendingRewards * compoundFeeBps / 10_000;
-        amountCompounded = pendingRewards - feeAmount;
+        uint256 rewardsToReinvest = pendingRewards - feeAmount;
 
         position.pendingRewards = 0;
-        position.compoundedAmount += amountCompounded;
         position.lastCompoundedAt = uint64(block.timestamp);
 
         if (feeAmount != 0) {
             position.rewardToken.safeTransfer(feeRecipient, feeAmount);
+        }
+
+        if (rewardsToReinvest != 0) {
+            if (position.rewardToken == position.depositToken) {
+                amountCompounded = rewardsToReinvest;
+            } else {
+                if (address(swapRouter) == address(0)) revert RouterNotConfigured();
+                position.rewardToken.safeApprove(address(swapRouter), 0);
+                position.rewardToken.safeApprove(address(swapRouter), rewardsToReinvest);
+                amountCompounded = swapRouter.swap(
+                    position.rewardToken,
+                    position.depositToken,
+                    rewardsToReinvest,
+                    address(this),
+                    0
+                );
+            }
+
+            position.compoundedAmount += amountCompounded;
+            position.principalBalance += amountCompounded;
         }
 
         emit RewardsCompounded(positionId, amountCompounded);
@@ -137,6 +164,24 @@ contract CompoundEngine is Owned {
     function setFeeRecipient(address newFeeRecipient) external onlyOwner {
         feeRecipient = newFeeRecipient;
         emit FeeRecipientUpdated(newFeeRecipient);
+    }
+
+    function setSwapRouter(address newRouter) external onlyOwner {
+        swapRouter = ISwapRouter(newRouter);
+        emit SwapRouterUpdated(newRouter);
+    }
+
+    function withdrawPrincipal(uint256 positionId, uint256 amount)
+        external
+        onlyPositionOwner(positionId)
+    {
+        Position storage position = positions[positionId];
+        if (amount > position.principalBalance) revert InsufficientPrincipal();
+
+        position.principalBalance -= amount;
+        position.depositToken.safeTransfer(position.owner, amount);
+
+        emit PrincipalWithdrawn(positionId, position.owner, amount);
     }
 
     function getPositionIdsByOwner(address owner) external view returns (uint256[] memory) {

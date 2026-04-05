@@ -277,24 +277,25 @@ dripfi/
 
 ---
 
-## 15. Implementation Sync Snapshot (April 4, 2026)
+## 15. Implementation Sync Snapshot (April 5, 2026)
 
-This PRD is synchronized with the current local repository scaffold:
+This PRD is synchronized with the current repository state:
 
 | Area | Status | Notes |
 |---|---|---|
-| Frontend landing page | Scaffolded | Judge-facing product pitch now lives in the Next.js app |
-| Frontend dashboard page | Live-ready locally | Strategy composer, wallet panel, autosign controls, and strategy action buttons are wired for real MiniEVM `MsgCall` flows once addresses are configured |
+| Frontend landing page | Public | Judge-facing product pitch is live in the Next.js app and deployed on Vercel |
+| Frontend dashboard page | Live-ready | Strategy composer, wallet panel, automation controls, and strategy action buttons are wired for real MiniEVM `MsgCall` flows once addresses are configured |
 | InterwovenKit integration | Wired | Provider, wallet connect, bridge entry, username identity, and MiniEVM autosign flows are included in the root web app |
-| Smart contracts | Implemented + tested locally | `DCAVault.sol`, `SwapRouter.sol`, `CompoundEngine.sol`, and local contract tests now cover create/fund/execute/pause/resume/stop and compound fee behavior |
-| `.initia/submission.json` | Present | Local scaffold exists and still needs final schema verification before submission |
-| README | Present | Root README describes the repo layout, contract tooling, and deploy flow |
+| Smart contracts | Implemented + tested locally | `DCAVault.sol` now restricts execution to owners or approved relayers, and `CompoundEngine.sol` compounds into tracked principal balances with local tests covering the flow |
+| Background execution | Added | A Vercel cron route now scans for due strategies and executes them with an approved relayer once env vars are configured |
+| `.initia/submission.json` | Present | Submission metadata includes the public Vercel URL, but still needs final schema verification before submission |
+| README | Present | Root README describes the repo layout, deploy flow, and automation executor setup |
 | Testnet deployment | Pending | Contract deployment and live chain verification still require a target MiniEVM JSON-RPC endpoint plus deployer credentials |
 | Demo video | Pending | Not yet produced |
 
 ### Important clarification
 
-The repository now matches the PRD at the **scaffold and local demo level**, but not yet at the **fully deployed hackathon submission level**. Live chain addresses, testnet deployment proof, public frontend hosting, and the final demo video are still outstanding.
+The repository now matches the PRD at the **public frontend and integration-ready level**, but not yet at the **fully deployed hackathon submission level**. Live chain addresses, testnet deployment proof, relayer secrets in Vercel, and the final demo video are still outstanding.
 
 ---
 

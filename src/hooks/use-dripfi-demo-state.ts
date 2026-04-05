@@ -1,13 +1,17 @@
 "use client";
 
 import { useDeferredValue, useState, useTransition } from "react";
-import { strategyTemplates, type DcaInterval } from "@/lib/dripfi-config";
+import {
+  strategyTemplates,
+  type ConfiguredTokenKey,
+  type DcaInterval,
+} from "@/lib/dripfi-config";
 import { calculateDraftMetrics } from "@/lib/dripfi-metrics";
 
 export type StrategyDraft = {
   templateId: string;
-  tokenIn: string;
-  tokenOut: string;
+  tokenIn: ConfiguredTokenKey;
+  tokenOut: ConfiguredTokenKey;
   amountPerOrder: string;
   budget: string;
   interval: DcaInterval;
@@ -17,8 +21,8 @@ export function useDripfiDemoState() {
   const [isPending, startTransition] = useTransition();
   const [draft, setDraft] = useState<StrategyDraft>({
     templateId: strategyTemplates[1].id,
-    tokenIn: "USDC",
-    tokenOut: "INIT",
+    tokenIn: "usdc",
+    tokenOut: "init",
     amountPerOrder: strategyTemplates[1].amountPerOrder,
     budget: strategyTemplates[1].budget,
     interval: strategyTemplates[1].interval,

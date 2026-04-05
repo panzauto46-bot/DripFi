@@ -52,6 +52,7 @@ async function main() {
   const rpcNodeUrl = process.env.RPC_URL ?? "https://rpc.testnet.initia.xyz";
   const indexerUrl = process.env.INDEXER_URL ?? "https://indexer.testnet.initia.xyz";
   const feeRecipient = process.env.FEE_RECIPIENT;
+  const automationRelayerAddress = process.env.AUTOMATION_RELAYER_ADDRESS;
 
   const provider = new ethers.JsonRpcProvider(rpcUrl);
   const wallet = new ethers.Wallet(privateKey, provider);
@@ -144,7 +145,12 @@ async function main() {
       NEXT_PUBLIC_SWAP_ROUTER_ADDRESS: deployment.contracts.swapRouter,
       NEXT_PUBLIC_COMPOUND_ENGINE_ADDRESS: deployment.contracts.compoundEngine,
       NEXT_PUBLIC_USDC_ADDRESS: deployment.contracts.usdc,
+      NEXT_PUBLIC_USDC_DECIMALS: "18",
       NEXT_PUBLIC_INIT_TOKEN_ADDRESS: deployment.contracts.initToken,
+      NEXT_PUBLIC_INIT_TOKEN_DECIMALS: "18",
+      ...(automationRelayerAddress
+        ? { NEXT_PUBLIC_AUTOMATION_RELAYER_ADDRESS: automationRelayerAddress }
+        : {}),
     });
     console.log(`Updated root app env at ${appEnvPath}`);
   }

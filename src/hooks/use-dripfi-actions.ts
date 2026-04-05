@@ -5,8 +5,19 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useInterwovenKit } from "@initia/interwovenkit-react";
 import { createPublicClient, http, parseUnits, type Address } from "viem";
 import { erc20Abi } from "@/lib/dripfi-abi";
-import { buildApproveInput, buildAutoSignFee, buildCreateStrategyAndFundInput, buildMsgCallMessage, buildSetSessionKeyInput, buildVaultActionInput } from "@/lib/dca-messages";
-import { dripfiConfig, isConfiguredAddress } from "@/lib/dripfi-config";
+import {
+  buildApproveInput,
+  buildAutoSignFee,
+  buildCreateStrategyAndFundInput,
+  buildMsgCallMessage,
+  buildSetSessionKeyInput,
+  buildVaultActionInput,
+} from "@/lib/dca-messages";
+import {
+  dripfiConfig,
+  getConfiguredToken,
+  isConfiguredAddress,
+} from "@/lib/dripfi-config";
 import type { StrategyDraft } from "@/hooks/use-dripfi-demo-state";
 
 type InterwovenKitShape = {
@@ -26,16 +37,15 @@ type InterwovenKitShape = {
   };
 };
 
-type StrategyAction = "pauseStrategy" | "resumeStrategy" | "cancelStrategy" | "withdrawFunds" | "executeOrder";
+type StrategyAction =
+  | "pauseStrategy"
+  | "resumeStrategy"
+  | "cancelStrategy"
+  | "withdrawFunds"
+  | "executeOrder";
 
 function invalidateKeys(queryClient: ReturnType<typeof useQueryClient>) {
-  return Promise.all([
-    queryClient.invalidateQueries({ queryKey: ["dripfi-strategies"] }),
-  ]);
-}
-
-function resolveTokenAddress(input: string, fallback: string) {
-  return input.startsWith("0x") && input.length === 42 ? (input as Address) : (fallback as Address);
+  return Promise.all([queryClient.invalidateQueries({ queryKey: ["dripfi-strategies"] })]);
 }
 
 export function useDripfiActions() {
@@ -60,10 +70,13 @@ export function useDripfiActions() {
   }, []);
 
   const chainId = dripfiConfig.chain.chain_id;
+  const automationRelayerConfigured = isConfiguredAddress(
+    dripfiConfig.automation.relayerAddress,
+  );
   const hasLiveVault =
     isConfiguredAddress(dripfiConfig.contracts.dcaVault) &&
-    isConfiguredAddress(dripfiConfig.tokens.usdc) &&
-    isConfiguredAddress(dripfiConfig.tokens.init);
+    isConfiguredAddress(dripfiConfig.tokens.usdc.address) &&
+    isConfiguredAddress(dripfiConfig.tokens.init.address);
 
   async function submitMessages(
     messages: ReturnType<typeof buildMsgCallMessage>[],
@@ -97,22 +110,46 @@ export function useDripfiActions() {
     return true;
   }
 
-  async function createStrategyFromDraft(
-    draft: StrategyDraft,
-    intervalInSeconds: number,
-    tokenDecimals: number,
-  ) {
+  async function createStrategyFromDraft(draft: StrategyDraft, intervalInSeconds: number) {
     if (!requireWallet()) return;
     if (!hasLiveVault || !publicClient || !hexAddress) {
       setStatus("Configure live contract and token addresses first.");
       return;
     }
 
+    const tokenInConfig = getConfiguredToken(draft.tokenIn);
+    const tokenOutConfig = getConfiguredToken(draft.tokenOut);
+    if (draft.tokenIn === draft.tokenOut) {
+      setStatus("Choose different funding and target tokens.");
+      return;
+    }
+    if (
+      !isConfiguredAddress(tokenInConfig.address) ||
+      !isConfiguredAddress(tokenOutConfig.address)
+    ) {
+      setStatus("Configured token addresses are still missing.");
+      return;
+    }
+
     setIsPending(true);
     try {
-      const tokenInAddress = resolveTokenAddress(draft.tokenIn, dripfiConfig.tokens.usdc);
-      const tokenOutAddress = resolveTokenAddress(draft.tokenOut, dripfiConfig.tokens.init);
+      const tokenInAddress = tokenInConfig.address as Address;
+      const tokenOutAddress = tokenOutConfig.address as Address;
+      const tokenInDecimalsRaw = await publicClient
+        .readContract({
+          address: tokenInAddress,
+          abi: erc20Abi,
+          functionName: "decimals",
+        })
+        .catch(() => tokenInConfig.decimals);
+      const tokenDecimals = Number(tokenInDecimalsRaw);
       const budget = parseUnits(draft.budget || "0", tokenDecimals);
+      const amountPerOrder = parseUnits(draft.amountPerOrder || "0", tokenDecimals);
+      if (budget <= 0n || amountPerOrder <= 0n) {
+        setStatus("Amount per order and budget must be greater than zero.");
+        return;
+      }
+
       const allowance = await publicClient.readContract({
         address: tokenInAddress,
         abi: erc20Abi,
@@ -127,10 +164,7 @@ export function useDripfiActions() {
             buildMsgCallMessage({
               sender: initiaAddress!,
               contractAddr: tokenInAddress,
-              input: buildApproveInput(
-                dripfiConfig.contracts.dcaVault as Address,
-                budget,
-              ),
+              input: buildApproveInput(dripfiConfig.contracts.dcaVault as Address, budget),
             }),
           ],
         });
@@ -154,7 +188,7 @@ export function useDripfiActions() {
         ],
       });
 
-      setStatus("Strategy created and funded.");
+      setStatus(`Strategy created and funded in ${tokenInConfig.symbol}.`);
       await invalidateKeys(queryClient);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Failed to create strategy.");
@@ -199,13 +233,33 @@ export function useDripfiActions() {
       srcChainId: dripfiConfig.bridge.srcChainId,
       srcDenom: dripfiConfig.bridge.srcDenom,
       dstChainId: dripfiConfig.chain.chain_id,
-      dstDenom: dripfiConfig.chain.native_assets[0].denom,
+      dstDenom: dripfiConfig.bridge.dstDenom,
       recipient: initiaAddress,
       sender: initiaAddress,
       quantity: quantity ?? "0",
       slippagePercent: "1",
     });
-    setStatus("Bridge drawer opened with DripFi defaults.");
+    setStatus(
+      `Bridge drawer opened for ${dripfiConfig.bridge.assetSymbol} on ${dripfiConfig.bridge.dstDenom}.`,
+    );
+  }
+
+  async function setAutomationRelayerApproval(approved: boolean) {
+    if (!automationRelayerConfigured || !hasLiveVault) return;
+
+    await requestTxBlock({
+      chainId,
+      messages: [
+        buildMsgCallMessage({
+          sender: initiaAddress!,
+          contractAddr: dripfiConfig.contracts.dcaVault,
+          input: buildSetSessionKeyInput(
+            dripfiConfig.automation.relayerAddress as Address,
+            approved,
+          ),
+        }),
+      ],
+    });
   }
 
   async function enableAutosign() {
@@ -214,22 +268,12 @@ export function useDripfiActions() {
     setIsPending(true);
     try {
       await autoSign.enable(chainId);
-
-      const grantee = autoSign.granteeByChain[chainId];
-      if (grantee?.startsWith("0x") && hasLiveVault) {
-        await requestTxBlock({
-          chainId,
-          messages: [
-            buildMsgCallMessage({
-              sender: initiaAddress!,
-              contractAddr: dripfiConfig.contracts.dcaVault,
-              input: buildSetSessionKeyInput(grantee as Address, true),
-            }),
-          ],
-        });
-      }
-
-      setStatus("Auto-sign enabled.");
+      await setAutomationRelayerApproval(true);
+      setStatus(
+        automationRelayerConfigured
+          ? "Auto-sign and background automation enabled."
+          : "Auto-sign enabled. Add an automation relayer env to unlock background execution.",
+      );
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Failed to enable auto-sign.");
     } finally {
@@ -242,6 +286,9 @@ export function useDripfiActions() {
 
     setIsPending(true);
     try {
+      if (automationRelayerConfigured && hasLiveVault) {
+        await setAutomationRelayerApproval(false);
+      }
       await autoSign.disable(chainId);
       setStatus("Auto-sign disabled.");
     } catch (error) {
@@ -256,6 +303,7 @@ export function useDripfiActions() {
     isPending: isPending || autoSign.isLoading,
     autoSignEnabled: autoSign.isEnabledByChain[chainId] ?? false,
     autoSignGrantee: autoSign.granteeByChain[chainId],
+    automationRelayerConfigured,
     createStrategyFromDraft,
     runStrategyAction,
     openRealBridge,

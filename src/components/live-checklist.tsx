@@ -9,12 +9,12 @@ export function LiveChecklist() {
             PRD Sync Snapshot
           </p>
           <h2 className="mt-2 font-display text-4xl tracking-[-0.04em] text-[var(--ink)]">
-            April 4, 2026 implementation status
+            April 5, 2026 implementation status
           </h2>
         </div>
         <p className="max-w-lg text-sm leading-7 text-[var(--muted)]">
-          This section is the repo-level answer to the PRD sync request: what is already scaffolded now,
-          and what still needs deployment and live chain verification.
+          This section is the repo-level answer to the PRD sync request: what is already live or
+          integration-ready now, and what still needs live chain verification.
         </p>
       </div>
 

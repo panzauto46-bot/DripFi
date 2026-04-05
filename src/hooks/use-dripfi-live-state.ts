@@ -57,7 +57,7 @@ const mockActivityFeed = [
   {
     time: "09:05",
     action: "Auto-sign enabled",
-    detail: "MsgCall autosign is ready for recurring execution.",
+    detail: "Background execution is armed for recurring orders.",
   },
   {
     time: "09:30",
@@ -76,21 +76,16 @@ function shortenHexAddress(address?: string | null) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
-function symbolFromAddress(address: Address) {
-  if (address.toLowerCase() === dripfiConfig.tokens.usdc.toLowerCase()) return "USDC";
-  if (address.toLowerCase() === dripfiConfig.tokens.init.toLowerCase()) return "INIT";
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
-
 export function useDripfiLiveState() {
   const { initiaAddress, hexAddress, username } = useInterwovenKit() as InterwovenKitShape;
   const usernameQuery = useUsernameQuery(initiaAddress);
 
   const hasLiveContracts =
     isConfiguredAddress(dripfiConfig.contracts.dcaVault) &&
-    isConfiguredAddress(dripfiConfig.tokens.usdc) &&
-    isConfiguredAddress(dripfiConfig.tokens.init) &&
+    isConfiguredAddress(dripfiConfig.tokens.usdc.address) &&
+    isConfiguredAddress(dripfiConfig.tokens.init.address) &&
     Boolean(dripfiConfig.chain.apis["json-rpc"][0]?.address);
+  const isScaffoldMode = !hasLiveContracts;
 
   const publicClient = useMemo(() => {
     const rpcUrl = dripfiConfig.chain.apis["json-rpc"][0]?.address;
@@ -114,6 +109,55 @@ export function useDripfiLiveState() {
         functionName: "getStrategyIdsByOwner",
         args: [owner],
       });
+      const tokenMetadataCache = new Map<
+        string,
+        Promise<{ symbol: string; decimals: number }>
+      >();
+
+      const getTokenMetadata = (address: Address) => {
+        const cacheKey = address.toLowerCase();
+        const cached = tokenMetadataCache.get(cacheKey);
+        if (cached) return cached;
+
+        const fallback =
+          cacheKey === dripfiConfig.tokens.usdc.address.toLowerCase()
+            ? {
+                symbol: dripfiConfig.tokens.usdc.symbol,
+                decimals: dripfiConfig.tokens.usdc.decimals,
+              }
+            : cacheKey === dripfiConfig.tokens.init.address.toLowerCase()
+              ? {
+                  symbol: dripfiConfig.tokens.init.symbol,
+                  decimals: dripfiConfig.tokens.init.decimals,
+                }
+              : {
+                  symbol: `${address.slice(0, 6)}...${address.slice(-4)}`,
+                  decimals: 18,
+                };
+
+        const metadataPromise = Promise.all([
+          publicClient!
+            .readContract({
+              address,
+              abi: erc20Abi,
+              functionName: "symbol",
+            })
+            .catch(() => fallback.symbol),
+          publicClient!
+            .readContract({
+              address,
+              abi: erc20Abi,
+              functionName: "decimals",
+            })
+            .catch(() => fallback.decimals),
+        ]).then(([symbol, decimals]) => ({
+          symbol,
+          decimals: Number(decimals),
+        }));
+
+        tokenMetadataCache.set(cacheKey, metadataPromise);
+        return metadataPromise;
+      };
 
       const strategyRows = await Promise.all(
         ids.map(async (strategyId) => {
@@ -134,71 +178,66 @@ export function useDripfiLiveState() {
             availableBalance,
             status,
           ] = strategy;
-          const nextExecutionAt = await publicClient!.readContract({
-            address: vaultAddress,
-            abi: dcaVaultAbi,
-            functionName: "nextExecutionAt",
-            args: [strategyId],
-          });
-          const canExecute = await publicClient!.readContract({
-            address: vaultAddress,
-            abi: dcaVaultAbi,
-            functionName: "canExecuteStrategy",
-            args: [strategyId],
-          });
-          const history = await publicClient!.readContract({
-            address: vaultAddress,
-            abi: dcaVaultAbi,
-            functionName: "getExecutionHistory",
-            args: [strategyId],
-          });
+          const [nextExecutionAt, canExecute, history, tokenInMeta, tokenOutMeta] =
+            await Promise.all([
+              publicClient!.readContract({
+                address: vaultAddress,
+                abi: dcaVaultAbi,
+                functionName: "nextExecutionAt",
+                args: [strategyId],
+              }),
+              publicClient!.readContract({
+                address: vaultAddress,
+                abi: dcaVaultAbi,
+                functionName: "canExecuteStrategy",
+                args: [strategyId],
+              }),
+              publicClient!.readContract({
+                address: vaultAddress,
+                abi: dcaVaultAbi,
+                functionName: "getExecutionHistory",
+                args: [strategyId],
+              }),
+              getTokenMetadata(tokenIn),
+              getTokenMetadata(tokenOut),
+            ]);
 
-          const tokenInSymbol =
-            tokenIn.toLowerCase() === dripfiConfig.tokens.usdc.toLowerCase()
-              ? "USDC"
-              : await publicClient!.readContract({
-                  address: tokenIn,
-                  abi: erc20Abi,
-                  functionName: "symbol",
-                }).catch(() => symbolFromAddress(tokenIn));
-
-          const tokenOutSymbol =
-            tokenOut.toLowerCase() === dripfiConfig.tokens.init.toLowerCase()
-              ? "INIT"
-              : await publicClient!.readContract({
-                  address: tokenOut,
-                  abi: erc20Abi,
-                  functionName: "symbol",
-                }).catch(() => symbolFromAddress(tokenOut));
-
+          const statusValue = Number(status);
+          const statusTone = strategyStatusTone(statusValue);
           const historyLength = history.length;
           const nextExecutionLabel =
-            status === 1
+            statusTone === "paused"
               ? "Paused"
-              : canExecute
-                ? "Ready now"
-                : new Date(Number(nextExecutionAt) * 1000).toLocaleString("en-US", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    month: "short",
-                    day: "numeric",
-                  });
+              : statusTone === "completed"
+                ? "Completed"
+                : statusTone === "stopped"
+                  ? "Stopped"
+                  : canExecute
+                    ? "Ready now"
+                    : new Date(Number(nextExecutionAt) * 1000).toLocaleString("en-US", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        month: "short",
+                        day: "numeric",
+                      });
 
           return {
             id: strategyId,
-            name: `${tokenInSymbol} -> ${tokenOutSymbol} DCA`,
+            name: `${tokenInMeta.symbol} -> ${tokenOutMeta.symbol} DCA`,
             cadence: intervalLabelFromSeconds(Number(interval)),
-            amount: `${formatTokenAmount(amountPerOrder)} ${tokenInSymbol} / execution`,
+            amount: `${formatTokenAmount(amountPerOrder, tokenInMeta.decimals)} ${tokenInMeta.symbol} / execution`,
             progress: `${historyLength} executions recorded`,
-            status: strategyStatusLabel(Number(status)),
-            statusTone: strategyStatusTone(Number(status)),
+            status: strategyStatusLabel(statusValue),
+            statusTone,
             canExecute,
             nextExecutionAt: Number(nextExecutionAt),
             nextExecutionLabel,
-            availableBalanceLabel: `${formatTokenAmount(availableBalance)} ${tokenInSymbol}`,
+            availableBalanceLabel: `${formatTokenAmount(availableBalance, tokenInMeta.decimals)} ${tokenInMeta.symbol}`,
             amountPerOrder,
             availableBalance,
             history,
+            tokenInSymbol: tokenInMeta.symbol,
+            tokenInDecimals: tokenInMeta.decimals,
           };
         }),
       );
@@ -208,8 +247,11 @@ export function useDripfiLiveState() {
   });
 
   const activityFeed = useMemo(() => {
-    if (!strategiesQuery.data || strategiesQuery.data.length === 0) {
+    if (isScaffoldMode) {
       return [...mockActivityFeed];
+    }
+    if (!strategiesQuery.data || strategiesQuery.data.length === 0) {
+      return [];
     }
 
     const historyItems = strategiesQuery.data.flatMap((strategy) =>
@@ -219,22 +261,18 @@ export function useDripfiLiveState() {
           minute: "2-digit",
         }),
         action: `${strategy.name} executed`,
-        detail: `${formatTokenAmount(entry.amountIn)} input swapped for the configured output token.`,
+        detail: `${formatTokenAmount(entry.amountIn, strategy.tokenInDecimals)} ${strategy.tokenInSymbol} swapped into the configured output token.`,
         executedAt: Number(entry.executedAt),
       })),
     );
 
     const sorted = historyItems.sort((left, right) => right.executedAt - left.executedAt);
-    if (sorted.length === 0) {
-      return [...mockActivityFeed];
-    }
-
     return sorted.slice(0, 6).map((item) => ({
       time: item.time,
       action: item.action,
       detail: item.detail,
     }));
-  }, [strategiesQuery.data]);
+  }, [isScaffoldMode, strategiesQuery.data]);
 
   return {
     identity:
@@ -242,9 +280,12 @@ export function useDripfiLiveState() {
     initiaAddress,
     hexAddress,
     hasLiveContracts,
+    isScaffoldMode,
     isLoadingStrategies: strategiesQuery.isLoading,
-    strategies: strategiesQuery.data?.length ? strategiesQuery.data : [...mockStrategies],
+    strategies: isScaffoldMode ? [...mockStrategies] : (strategiesQuery.data ?? []),
     activityFeed,
+    strategiesError:
+      strategiesQuery.error instanceof Error ? strategiesQuery.error.message : null,
     refetchStrategies: strategiesQuery.refetch,
   };
 }

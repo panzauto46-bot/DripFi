@@ -37,6 +37,7 @@ export function WalletPanel({
     isPending,
     autoSignEnabled,
     autoSignGrantee,
+    automationRelayerConfigured,
     openRealBridge,
     enableAutosign,
     disableAutosign,
@@ -54,7 +55,7 @@ export function WalletPanel({
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
             {compact
               ? "One place for identity, autosign, bridge, and chain status."
-              : "Wallet connect, bridge entry, username identity, and autosign controls for live MiniEVM strategy actions."}
+              : "Wallet connect, bridge entry, username identity, and automation controls for live MiniEVM strategy actions."}
           </p>
         </div>
         <div className="rounded-full border border-[var(--line)] px-3 py-1 font-mono text-[11px] uppercase tracking-[0.24em] text-[var(--mint)]">
@@ -67,8 +68,8 @@ export function WalletPanel({
         <StatRow label=".init identity" value={formatUsername(username)} />
         <StatRow label="Appchain" value={dripfiConfig.chain.chain_id} />
         <StatRow
-          label="Autosign"
-          value={autoSignEnabled ? "Enabled" : "Disabled"}
+          label="Automation"
+          value={autoSignEnabled ? "Armed" : "Manual only"}
         />
         <StatRow
           label="Vault address"
@@ -77,6 +78,14 @@ export function WalletPanel({
               ? "Configured"
               : "Missing env"
           }
+        />
+        <StatRow
+          label="Bridge asset"
+          value={`${dripfiConfig.bridge.assetSymbol} -> ${dripfiConfig.bridge.dstDenom}`}
+        />
+        <StatRow
+          label="Relayer"
+          value={automationRelayerConfigured ? "Configured" : "Missing env"}
         />
       </div>
 
@@ -98,13 +107,13 @@ export function WalletPanel({
           onClick={() => openRealBridge()}
           className="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-medium text-[var(--ink)] hover:-translate-y-0.5 hover:border-[var(--gold)] hover:text-[var(--gold)]"
         >
-          Open bridge
+          {`Bridge ${dripfiConfig.bridge.assetSymbol}`}
         </button>
         <button
           onClick={autoSignEnabled ? disableAutosign : enableAutosign}
           className="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-medium text-[var(--ink)] hover:-translate-y-0.5 hover:border-[var(--mint)] hover:text-[var(--mint)]"
         >
-          {autoSignEnabled ? "Disable autosign" : "Enable autosign"}
+          {autoSignEnabled ? "Disable automation" : "Enable automation"}
         </button>
       </div>
 
@@ -117,6 +126,12 @@ export function WalletPanel({
       {isPending ? (
         <p className="mt-1 text-xs leading-6 text-[var(--muted)]">
           Processing on-chain action...
+        </p>
+      ) : null}
+      {!automationRelayerConfigured ? (
+        <p className="mt-1 text-xs leading-6 text-[var(--gold)]">
+          Add `NEXT_PUBLIC_AUTOMATION_RELAYER_ADDRESS` and the matching server relayer key in
+          Vercel to keep due strategies executing after the tab closes.
         </p>
       ) : null}
     </section>

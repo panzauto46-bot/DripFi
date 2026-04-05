@@ -59,7 +59,9 @@ async function setupFixture() {
   );
 
   await (await router.setPairQuote(await usdc.getAddress(), await initToken.getAddress(), ethers.parseUnits("2", 18))).wait();
+  await (await router.setPairQuote(await initToken.getAddress(), await usdc.getAddress(), ethers.parseUnits("0.5", 18))).wait();
   await (await initToken.mint(await router.getAddress(), ethers.parseUnits("1000000", 18))).wait();
+  await (await usdc.mint(await router.getAddress(), ethers.parseUnits("1000000", 18))).wait();
   await (await usdc.mint(await admin.getAddress(), ethers.parseUnits("1000000", 18))).wait();
   await (await usdc.mint(await helper.getAddress(), ethers.parseUnits("1000", 18))).wait();
   await (await usdc.approve(await vault.getAddress(), ethers.MaxUint256)).wait();
@@ -94,8 +96,11 @@ test("vault supports create+fund, third-party funding, preview, execute, and own
   const funded = await vault.strategies(strategyId);
   assert.equal(funded.availableBalance.toString(), ethers.parseUnits("450", 18).toString());
 
+  await assert.rejects(vault.connect(helper).executeOrder(strategyId));
+  await (await vault.setSessionKey(await helper.getAddress(), true)).wait();
+
   assert.equal(await vault.canExecuteStrategy(strategyId), true);
-  await (await vault.executeOrder(strategyId)).wait();
+  await (await vault.connect(helper).executeOrder(strategyId)).wait();
   assert.equal(await vault.canExecuteStrategy(strategyId), false);
 
   const history = await vault.getExecutionHistory(strategyId);
@@ -112,10 +117,11 @@ test("vault supports create+fund, third-party funding, preview, execute, and own
 });
 
 test("compound engine indexes positions and charges the compound fee", async () => {
-  const { admin, usdc, initToken, compound } = await setupFixture();
+  const { admin, usdc, initToken, router, compound } = await setupFixture();
 
   await (await initToken.approve(await compound.getAddress(), ethers.MaxUint256)).wait();
   await (await initToken.mint(await admin.getAddress(), ethers.parseUnits("100", 18))).wait();
+  await (await compound.setSwapRouter(await router.getAddress())).wait();
 
   const registerReceipt = await (await compound.registerPosition(
     await initToken.getAddress(),
@@ -132,5 +138,6 @@ test("compound engine indexes positions and charges the compound fee", async () 
   await (await compound.compound(ids[0])).wait();
 
   const position = await compound.positions(ids[0]);
-  assert.equal(position.compoundedAmount.toString(), ethers.parseUnits("9.5", 18).toString());
+  assert.equal(position.compoundedAmount.toString(), ethers.parseUnits("4.75", 18).toString());
+  assert.equal(position.principalBalance.toString(), ethers.parseUnits("4.75", 18).toString());
 });

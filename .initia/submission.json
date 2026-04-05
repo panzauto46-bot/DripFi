@@ -4,16 +4,18 @@
   "chain_id": "dripfi-1",
   "summary": "Automated DCA and auto-compound protocol on Initia",
   "description": "DripFi lets users automate recurring token purchases with Initia autosign, bridge capital from other chains, and monitor strategy performance from a single dashboard.",
-  "repo_status": "local-scaffold",
+  "repo_status": "public-frontend-live",
   "frontend_local_url": "http://127.0.0.1:3000",
+  "frontend_public_url": "https://drip-fi.vercel.app",
   "frontend_routes": [
     "/",
-    "/dashboard"
+    "/dashboard",
+    "/api/cron/execute-dca"
   ],
   "native_features": [
     "Auto-signing / Session UX",
     "Interwoven Bridge",
     "Initia Usernames (.init)"
   ],
-  "notes": "Replace placeholder links and confirm the final submission schema before hackathon hand-in."
+  "notes": "Public frontend is live on Vercel. Configure live contract addresses plus the automation relayer env vars before final submission."
 }

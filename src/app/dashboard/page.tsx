@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import Link from "next/link";
 import { StrategyComposer } from "@/components/strategy-composer";
 import { WalletPanel } from "@/components/wallet-panel";
@@ -14,25 +13,12 @@ export default function DashboardPage() {
     strategies,
     activityFeed,
     hasLiveContracts,
+    isScaffoldMode,
     isLoadingStrategies,
+    strategiesError,
   } = useDripfiLiveState();
-  const { isPending, runStrategyAction, status, autoSignEnabled } = useDripfiActions();
-
-  useEffect(() => {
-    if (!autoSignEnabled || !hasLiveContracts || isPending) return;
-
-    const interval = window.setInterval(() => {
-      const dueStrategy = strategies.find(
-        (strategy) => strategy.statusTone === "running" && strategy.canExecute,
-      );
-      if (!dueStrategy) return;
-      if (document.visibilityState !== "visible") return;
-
-      void runStrategyAction(dueStrategy.id, "executeOrder");
-    }, dripfiConfig.submission.autoExecutionPollMs);
-
-    return () => window.clearInterval(interval);
-  }, [autoSignEnabled, hasLiveContracts, isPending, runStrategyAction, strategies]);
+  const { isPending, runStrategyAction, status, autoSignEnabled, automationRelayerConfigured } =
+    useDripfiActions();
 
   return (
     <main className="relative min-h-screen overflow-hidden text-[color:var(--ink)]">
@@ -73,9 +59,24 @@ export default function DashboardPage() {
         </header>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <StatusPill label={hasLiveContracts ? "Live contracts configured" : "Env addresses still missing"} tone={hasLiveContracts ? "positive" : "warning"} />
-          <StatusPill label={autoSignEnabled ? "Autosign active" : "Autosign not active"} tone={autoSignEnabled ? "positive" : "neutral"} />
+          <StatusPill
+            label={hasLiveContracts ? "Live contracts configured" : "Env addresses still missing"}
+            tone={hasLiveContracts ? "positive" : "warning"}
+          />
+          <StatusPill
+            label={autoSignEnabled ? "Automation armed" : "Automation not armed"}
+            tone={autoSignEnabled ? "positive" : "neutral"}
+          />
+          <StatusPill
+            label={
+              automationRelayerConfigured
+                ? `Background executor: ${dripfiConfig.automation.cronPath}`
+                : "Background executor env missing"
+            }
+            tone={automationRelayerConfigured ? "positive" : "warning"}
+          />
           {isLoadingStrategies ? <StatusPill label="Syncing strategy state" tone="neutral" /> : null}
+          {strategiesError ? <StatusPill label={strategiesError} tone="warning" /> : null}
           {status !== "Ready." ? <StatusPill label={status} tone="neutral" /> : null}
         </div>
 
@@ -98,11 +99,15 @@ export default function DashboardPage() {
                   <MiniMetric label="Strategies live" value={String(strategies.length)} />
                   <MiniMetric
                     label="Execution mode"
-                    value={autoSignEnabled ? "Autosign" : "Manual"}
+                    value={autoSignEnabled ? "Automation" : "Manual"}
                   />
                   <MiniMetric
                     label="Vault mode"
-                    value={hasLiveContracts ? "Connected" : "Scaffold"}
+                    value={isScaffoldMode ? "Scaffold" : "Connected"}
+                  />
+                  <MiniMetric
+                    label="Executor"
+                    value={automationRelayerConfigured ? "Cron live" : "Needs env"}
                   />
                 </div>
               </div>
@@ -178,85 +183,95 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="mt-5 grid gap-3 lg:grid-cols-2">
-              {strategies.map((strategy) => (
-                <div key={strategy.name} className="rounded-[1.4rem] border border-white/8 bg-white/4 p-5">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-2xl font-medium tracking-[-0.03em] text-[var(--ink)]">
-                        {strategy.name}
-                      </p>
-                      <p className="mt-1 text-sm text-[var(--muted)]">{strategy.progress}</p>
+            {strategies.length === 0 ? (
+              <div className="mt-5 rounded-[1.4rem] border border-dashed border-white/10 bg-white/3 p-5 text-sm leading-7 text-[var(--muted)]">
+                No live strategies found yet. Create one from the composer above, or confirm the
+                connected wallet matches the deployed vault owner.
+              </div>
+            ) : (
+              <div className="mt-5 grid gap-3 lg:grid-cols-2">
+                {strategies.map((strategy) => (
+                  <div
+                    key={strategy.id.toString()}
+                    className="rounded-[1.4rem] border border-white/8 bg-white/4 p-5"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-2xl font-medium tracking-[-0.03em] text-[var(--ink)]">
+                          {strategy.name}
+                        </p>
+                        <p className="mt-1 text-sm text-[var(--muted)]">{strategy.progress}</p>
+                      </div>
+                      <span
+                        className={`rounded-full px-3 py-1 font-mono text-[11px] uppercase tracking-[0.24em] ${
+                          strategy.statusTone === "running"
+                            ? "bg-[var(--mint-soft)] text-[var(--mint)]"
+                            : strategy.statusTone === "paused"
+                              ? "bg-[var(--gold-soft)] text-[var(--gold)]"
+                              : "bg-white/8 text-[var(--muted)]"
+                        }`}
+                      >
+                        {strategy.status}
+                      </span>
                     </div>
-                    <span
-                      className={`rounded-full px-3 py-1 font-mono text-[11px] uppercase tracking-[0.24em] ${
-                        strategy.statusTone === "running"
-                          ? "bg-[var(--mint-soft)] text-[var(--mint)]"
-                          : strategy.statusTone === "paused"
-                            ? "bg-[var(--gold-soft)] text-[var(--gold)]"
-                            : "bg-white/8 text-[var(--muted)]"
-                      }`}
-                    >
-                      {strategy.status}
-                    </span>
-                  </div>
 
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    <MiniMetric label="Cadence" value={strategy.cadence} />
-                    <MiniMetric label="Order size" value={strategy.amount} />
-                    <MiniMetric label="Capital left" value={strategy.availableBalanceLabel} />
-                    <MiniMetric label="Next execution" value={strategy.nextExecutionLabel} />
-                  </div>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                      <MiniMetric label="Cadence" value={strategy.cadence} />
+                      <MiniMetric label="Order size" value={strategy.amount} />
+                      <MiniMetric label="Capital left" value={strategy.availableBalanceLabel} />
+                      <MiniMetric label="Next execution" value={strategy.nextExecutionLabel} />
+                    </div>
 
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    {strategy.statusTone !== "completed" && strategy.statusTone !== "stopped" ? (
-                      <button
-                        onClick={() => runStrategyAction(strategy.id, "executeOrder")}
-                        disabled={!strategy.canExecute || isPending}
-                        className="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-medium text-[var(--ink)] hover:-translate-y-0.5 hover:border-[var(--mint)] hover:text-[var(--mint)] disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        Execute now
-                      </button>
-                    ) : null}
-                    {strategy.statusTone === "paused" ? (
-                      <button
-                        onClick={() => runStrategyAction(strategy.id, "resumeStrategy")}
-                        disabled={isPending}
-                        className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-[var(--muted)] hover:-translate-y-0.5 hover:border-[var(--gold)] hover:text-[var(--gold)] disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        Resume
-                      </button>
-                    ) : strategy.statusTone === "running" ? (
-                      <button
-                        onClick={() => runStrategyAction(strategy.id, "pauseStrategy")}
-                        disabled={isPending}
-                        className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-[var(--muted)] hover:-translate-y-0.5 hover:border-[var(--gold)] hover:text-[var(--gold)] disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        Pause
-                      </button>
-                    ) : null}
-                    {strategy.statusTone !== "completed" ? (
-                      <button
-                        onClick={() => runStrategyAction(strategy.id, "cancelStrategy")}
-                        disabled={isPending}
-                        className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-[var(--muted)] hover:-translate-y-0.5 hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        Stop
-                      </button>
-                    ) : null}
-                    {strategy.availableBalance > 0n && strategy.statusTone !== "running" ? (
-                      <button
-                        onClick={() => runStrategyAction(strategy.id, "withdrawFunds")}
-                        disabled={isPending}
-                        className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-[var(--muted)] hover:-translate-y-0.5 hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        Withdraw
-                      </button>
-                    ) : null}
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {strategy.statusTone !== "completed" && strategy.statusTone !== "stopped" ? (
+                        <button
+                          onClick={() => runStrategyAction(strategy.id, "executeOrder")}
+                          disabled={!strategy.canExecute || isPending}
+                          className="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-medium text-[var(--ink)] hover:-translate-y-0.5 hover:border-[var(--mint)] hover:text-[var(--mint)] disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Execute now
+                        </button>
+                      ) : null}
+                      {strategy.statusTone === "paused" ? (
+                        <button
+                          onClick={() => runStrategyAction(strategy.id, "resumeStrategy")}
+                          disabled={isPending}
+                          className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-[var(--muted)] hover:-translate-y-0.5 hover:border-[var(--gold)] hover:text-[var(--gold)] disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Resume
+                        </button>
+                      ) : strategy.statusTone === "running" ? (
+                        <button
+                          onClick={() => runStrategyAction(strategy.id, "pauseStrategy")}
+                          disabled={isPending}
+                          className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-[var(--muted)] hover:-translate-y-0.5 hover:border-[var(--gold)] hover:text-[var(--gold)] disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Pause
+                        </button>
+                      ) : null}
+                      {strategy.statusTone !== "completed" ? (
+                        <button
+                          onClick={() => runStrategyAction(strategy.id, "cancelStrategy")}
+                          disabled={isPending}
+                          className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-[var(--muted)] hover:-translate-y-0.5 hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Stop
+                        </button>
+                      ) : null}
+                      {strategy.availableBalance > 0n && strategy.statusTone !== "running" ? (
+                        <button
+                          onClick={() => runStrategyAction(strategy.id, "withdrawFunds")}
+                          disabled={isPending}
+                          className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-[var(--muted)] hover:-translate-y-0.5 hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Withdraw
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </section>
 
           <section className="panel reveal reveal-delay-3 rounded-[1.8rem] p-6 sm:p-7">
@@ -270,26 +285,33 @@ export default function DashboardPage() {
                 </h2>
               </div>
               <div className="rounded-full border border-[var(--line)] px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.24em] text-[var(--mint)]">
-                4 fresh events
+                {activityFeed.length} fresh events
               </div>
             </div>
 
-            <div className="mt-5 grid gap-3 lg:grid-cols-2">
-              {activityFeed.map((item) => (
-                <div
-                  key={`${item.time}-${item.action}`}
-                  className="rounded-[1.4rem] border border-white/8 bg-white/4 p-4"
-                >
-                  <div className="flex items-center justify-between gap-4">
-                    <p className="font-medium text-[var(--ink)]">{item.action}</p>
-                    <span className="font-mono text-xs uppercase tracking-[0.24em] text-[var(--gold)]">
-                      {item.time}
-                    </span>
+            {activityFeed.length === 0 ? (
+              <div className="mt-5 rounded-[1.4rem] border border-dashed border-white/10 bg-white/3 p-5 text-sm leading-7 text-[var(--muted)]">
+                No live execution history yet. Once the relayer is configured and a strategy becomes
+                due, new events will appear here automatically.
+              </div>
+            ) : (
+              <div className="mt-5 grid gap-3 lg:grid-cols-2">
+                {activityFeed.map((item) => (
+                  <div
+                    key={`${item.time}-${item.action}`}
+                    className="rounded-[1.4rem] border border-white/8 bg-white/4 p-4"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <p className="font-medium text-[var(--ink)]">{item.action}</p>
+                      <span className="font-mono text-xs uppercase tracking-[0.24em] text-[var(--gold)]">
+                        {item.time}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-[var(--muted)]">{item.detail}</p>
                   </div>
-                  <p className="mt-2 text-sm text-[var(--muted)]">{item.detail}</p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </section>
         </div>
       </div>

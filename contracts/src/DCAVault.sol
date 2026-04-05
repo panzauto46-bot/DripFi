@@ -48,6 +48,7 @@ contract DCAVault is Owned {
     error InsufficientStrategyBalance();
     error RouterNotConfigured();
     error InvalidRecipient();
+    error ExecutionUnauthorized();
 
     event StrategyCreated(
         uint256 indexed strategyId,
@@ -208,6 +209,7 @@ contract DCAVault is Owned {
     {
         Strategy storage strategy = strategies[strategyId];
         if (strategy.owner == address(0)) revert InvalidStrategy();
+        if (!_isExecutionAuthorized(strategy, msg.sender)) revert ExecutionUnauthorized();
         if (strategy.status != StrategyStatus.Active) revert StrategyNotActive();
         if (address(swapRouter) == address(0)) revert RouterNotConfigured();
         if (strategy.availableBalance < strategy.amountPerOrder) revert InsufficientStrategyBalance();
@@ -336,6 +338,16 @@ contract DCAVault is Owned {
         emit SessionKeyUpdated(msg.sender, sessionKey, approved);
     }
 
+    function isExecutionAuthorized(uint256 strategyId, address executor)
+        external
+        view
+        returns (bool)
+    {
+        Strategy storage strategy = strategies[strategyId];
+        if (strategy.owner == address(0)) revert InvalidStrategy();
+        return _isExecutionAuthorized(strategy, executor);
+    }
+
     function nextExecutionAt(uint256 strategyId) external view returns (uint256) {
         Strategy storage strategy = strategies[strategyId];
         if (strategy.owner == address(0)) revert InvalidStrategy();
@@ -380,5 +392,13 @@ contract DCAVault is Owned {
         returns (ExecutionHistory[] memory)
     {
         return executionHistory[strategyId];
+    }
+
+    function _isExecutionAuthorized(Strategy storage strategy, address executor)
+        internal
+        view
+        returns (bool)
+    {
+        return executor == strategy.owner || approvedSessionKeys[strategy.owner][executor];
     }
 }

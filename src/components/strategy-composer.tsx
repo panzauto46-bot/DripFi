@@ -1,6 +1,12 @@
 "use client";
 
-import { intervalLabels, dripfiConfig, strategyTemplates } from "@/lib/dripfi-config";
+import {
+  dripfiConfig,
+  dripfiTokenOptions,
+  getConfiguredToken,
+  intervalLabels,
+  strategyTemplates,
+} from "@/lib/dripfi-config";
 import { useDripfiActions } from "@/hooks/use-dripfi-actions";
 import { useDripfiDemoState } from "@/hooks/use-dripfi-demo-state";
 
@@ -15,6 +21,10 @@ export function StrategyComposer() {
     openRealBridge,
     hasLiveVault,
   } = useDripfiActions();
+  const fundingToken = getConfiguredToken(draft.tokenIn);
+  const targetToken = getConfiguredToken(draft.tokenOut);
+  const bridgeMatchesFundingToken =
+    dripfiConfig.bridge.assetSymbol.toUpperCase() === fundingToken.symbol.toUpperCase();
 
   return (
     <section className="panel rounded-[1.8rem] p-5 sm:p-6">
@@ -37,7 +47,7 @@ export function StrategyComposer() {
               : "border-[var(--line)] text-[var(--muted)]"
           }`}
         >
-          {autoSignEnabled ? "Autosign enabled" : "Manual confirm"}
+          {autoSignEnabled ? "Automation armed" : "Manual confirm"}
         </div>
       </div>
 
@@ -69,12 +79,12 @@ export function StrategyComposer() {
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        <InputCard
+        <TokenSelectCard
           label="Funding token"
           value={draft.tokenIn}
           onChange={(value) => updateDraft("tokenIn", value)}
         />
-        <InputCard
+        <TokenSelectCard
           label="Target token"
           value={draft.tokenOut}
           onChange={(value) => updateDraft("tokenOut", value)}
@@ -82,13 +92,13 @@ export function StrategyComposer() {
         <InputCard
           label="Amount per order"
           value={draft.amountPerOrder}
-          suffix="USD"
+          suffix={fundingToken.symbol}
           onChange={(value) => updateDraft("amountPerOrder", value)}
         />
         <InputCard
           label="Strategy budget"
           value={draft.budget}
-          suffix="USD"
+          suffix={fundingToken.symbol}
           onChange={(value) => updateDraft("budget", value)}
         />
 
@@ -131,7 +141,7 @@ export function StrategyComposer() {
           <PreviewRow label="Orders / month" value={String(metrics.runsPerMonth)} />
           <PreviewRow
             label="Monthly spend"
-            value={`$${metrics.projectedMonthlySpend.toFixed(0)}`}
+            value={`${metrics.projectedMonthlySpend.toFixed(0)} ${fundingToken.symbol}`}
           />
           <PreviewRow label="Runway" value={`${metrics.projectedRunway} orders`} />
           <PreviewRow
@@ -144,11 +154,7 @@ export function StrategyComposer() {
           <button
             type="button"
             onClick={() =>
-              createStrategyFromDraft(
-                draft,
-                metrics.intervalInSeconds,
-                dripfiConfig.chain.native_assets[0].decimals,
-              )
+              createStrategyFromDraft(draft, metrics.intervalInSeconds)
             }
             className="rounded-full bg-[var(--mint)] px-4 py-2 text-sm font-medium text-slate-950 hover:-translate-y-0.5 hover:bg-[#e7e7e7]"
           >
@@ -159,11 +165,24 @@ export function StrategyComposer() {
             onClick={() => openRealBridge(draft.budget)}
             className="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-medium text-[var(--ink)] hover:-translate-y-0.5 hover:border-[var(--gold)] hover:text-[var(--gold)]"
           >
-            Bridge capital
+            {`Bridge ${dripfiConfig.bridge.assetSymbol}`}
           </button>
         </div>
 
         <p className="mt-3 text-xs leading-6 text-[var(--muted)]">{status}</p>
+        <p className="mt-1 text-xs leading-6 text-[var(--muted)]">
+          Configured path: {fundingToken.symbol} into {targetToken.symbol}.
+        </p>
+        {bridgeMatchesFundingToken ? (
+          <p className="mt-1 text-xs leading-6 text-[var(--muted)]">
+            Bridge funding targets `{dripfiConfig.bridge.dstDenom}` for {fundingToken.symbol} top-ups.
+          </p>
+        ) : (
+          <p className="mt-1 text-xs leading-6 text-[var(--gold)]">
+            Bridge is currently configured for {dripfiConfig.bridge.assetSymbol}. Switch the funding
+            token or fund {fundingToken.symbol} manually before creating the strategy.
+          </p>
+        )}
         {!hasLiveVault ? (
           <p className="mt-1 text-xs leading-6 text-[var(--gold)]">
             Live mode needs deployed addresses in `.env.local`.
@@ -171,6 +190,37 @@ export function StrategyComposer() {
         ) : null}
       </div>
     </section>
+  );
+}
+
+function TokenSelectCard({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: (typeof dripfiTokenOptions)[number]["key"];
+  onChange: (value: (typeof dripfiTokenOptions)[number]["key"]) => void;
+}) {
+  return (
+    <label className="rounded-[1.4rem] border border-white/8 bg-white/4 p-4">
+      <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-[var(--muted)]">
+        {label}
+      </p>
+      <select
+        value={value}
+        onChange={(event) =>
+          onChange(event.target.value as (typeof dripfiTokenOptions)[number]["key"])
+        }
+        className="mt-2 w-full bg-transparent text-base font-medium text-[var(--ink)] outline-none"
+      >
+        {dripfiTokenOptions.map((token) => (
+          <option key={token.key} value={token.key} className="bg-[#090909] text-[var(--ink)]">
+            {token.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 

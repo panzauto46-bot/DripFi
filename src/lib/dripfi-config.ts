@@ -1,6 +1,10 @@
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 const env = process.env;
+const nativeDecimals = Number(env.NEXT_PUBLIC_NATIVE_DECIMALS ?? 18);
+
+export const configuredTokenKeys = ["usdc", "init"] as const;
+export type ConfiguredTokenKey = (typeof configuredTokenKeys)[number];
 
 export const dripfiConfig = {
   chain: {
@@ -17,9 +21,7 @@ export const dripfiConfig = {
       rpc: [{ address: env.NEXT_PUBLIC_RPC_URL ?? "http://localhost:26657" }],
       rest: [{ address: env.NEXT_PUBLIC_REST_URL ?? "http://localhost:1317" }],
       indexer: [{ address: env.NEXT_PUBLIC_INDEXER_URL ?? "http://localhost:8080" }],
-      "json-rpc": [
-        { address: env.NEXT_PUBLIC_JSON_RPC_URL ?? "http://localhost:8545" },
-      ],
+      "json-rpc": [{ address: env.NEXT_PUBLIC_JSON_RPC_URL ?? "http://localhost:8545" }],
     },
     fees: {
       fee_tokens: [
@@ -44,7 +46,7 @@ export const dripfiConfig = {
         denom: env.NEXT_PUBLIC_NATIVE_DENOM ?? "uinit",
         name: "Initia Native Token",
         symbol: env.NEXT_PUBLIC_NATIVE_SYMBOL ?? "INIT",
-        decimals: Number(env.NEXT_PUBLIC_NATIVE_DECIMALS ?? 18),
+        decimals: nativeDecimals,
       },
     ],
   },
@@ -54,12 +56,31 @@ export const dripfiConfig = {
     compoundEngine: env.NEXT_PUBLIC_COMPOUND_ENGINE_ADDRESS ?? ZERO_ADDRESS,
   },
   tokens: {
-    usdc: env.NEXT_PUBLIC_USDC_ADDRESS ?? ZERO_ADDRESS,
-    init: env.NEXT_PUBLIC_INIT_TOKEN_ADDRESS ?? ZERO_ADDRESS,
+    usdc: {
+      key: "usdc",
+      label: "USDC",
+      symbol: "USDC",
+      address: env.NEXT_PUBLIC_USDC_ADDRESS ?? ZERO_ADDRESS,
+      decimals: Number(env.NEXT_PUBLIC_USDC_DECIMALS ?? 6),
+    },
+    init: {
+      key: "init",
+      label: env.NEXT_PUBLIC_NATIVE_SYMBOL ?? "INIT",
+      symbol: env.NEXT_PUBLIC_NATIVE_SYMBOL ?? "INIT",
+      address: env.NEXT_PUBLIC_INIT_TOKEN_ADDRESS ?? ZERO_ADDRESS,
+      decimals: Number(env.NEXT_PUBLIC_INIT_TOKEN_DECIMALS ?? nativeDecimals),
+    },
   },
   bridge: {
     srcChainId: env.NEXT_PUBLIC_BRIDGE_SRC_CHAIN_ID ?? "initiation-2",
     srcDenom: env.NEXT_PUBLIC_BRIDGE_SRC_DENOM ?? "uinit",
+    dstDenom: env.NEXT_PUBLIC_BRIDGE_DST_DENOM ?? env.NEXT_PUBLIC_NATIVE_DENOM ?? "uinit",
+    assetSymbol:
+      env.NEXT_PUBLIC_BRIDGE_ASSET_SYMBOL ?? env.NEXT_PUBLIC_NATIVE_SYMBOL ?? "INIT",
+  },
+  automation: {
+    relayerAddress: env.NEXT_PUBLIC_AUTOMATION_RELAYER_ADDRESS ?? ZERO_ADDRESS,
+    cronPath: "/api/cron/execute-dca",
   },
   submission: {
     chainId: "dripfi-1",
@@ -110,6 +131,12 @@ export const strategyTemplates = [
   },
 ];
 
+export const dripfiTokenOptions = configuredTokenKeys.map((key) => dripfiConfig.tokens[key]);
+
+export function getConfiguredToken(key: ConfiguredTokenKey) {
+  return dripfiConfig.tokens[key];
+}
+
 export const prdSyncStatus = [
   {
     label: "Repo structure",
@@ -119,17 +146,17 @@ export const prdSyncStatus = [
   {
     label: "InterwovenKit",
     status: "wired",
-    detail: "Provider and wallet/bridge entry points are scaffolded in the frontend.",
+    detail: "Provider, wallet, bridge, autosign, and identity entry points are wired in the frontend.",
   },
   {
     label: "Smart contracts",
-    status: "scaffolded",
-    detail: "DCAVault, SwapRouter, CompoundEngine, and a Foundry test scaffold are included.",
+    status: "implemented",
+    detail: "DCAVault now gates execution by approved relayers, and CompoundEngine compounds into tracked principal balances.",
   },
   {
     label: "Submission assets",
     status: "partial",
-    detail: "README and submission.json exist locally, but deploy links and video remain pending.",
+    detail: "README and submission metadata now reference the public Vercel app, but final submission proof still needs live contract verification and a demo video.",
   },
 ];
 

@@ -8,6 +8,7 @@ import {MockERC20} from "../src/mocks/MockERC20.sol";
 interface Vm {
     function warp(uint256 newTimestamp) external;
     function prank(address newSender) external;
+    function expectRevert(bytes calldata revertData) external;
 }
 
 contract DCAVaultTest {
@@ -134,6 +135,26 @@ contract DCAVaultTest {
 
         vm.warp(block.timestamp + 1 days);
         require(vault.canExecuteStrategy(strategyId), "strategy should be executable after interval");
+    }
+
+    function testApprovedSessionKeyCanExecuteForOwner() public {
+        setUp();
+
+        address helper = address(0xCAFE);
+        uint256 strategyId = vault.createStrategy(address(usdc), address(initToken), 100 ether, 1 days);
+        vault.fundStrategy(strategyId, 300 ether);
+
+        vm.expectRevert(abi.encodeWithSelector(DCAVault.ExecutionUnauthorized.selector));
+        vm.prank(helper);
+        vault.executeOrder(strategyId);
+
+        vault.setSessionKey(helper, true);
+
+        vm.prank(helper);
+        vault.executeOrder(strategyId);
+
+        (,,,,,,, uint256 remainingBalance,) = vault.strategies(strategyId);
+        assertEq(remainingBalance, 200 ether, "approved session key can execute");
     }
 
     function assertEq(uint256 left, uint256 right, string memory reason) internal pure {

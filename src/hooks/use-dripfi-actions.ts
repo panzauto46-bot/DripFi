@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useInterwovenKit } from "@initia/interwovenkit-react";
-import { createPublicClient, http, parseUnits, type Address } from "viem";
+import { parseUnits, type Address } from "viem";
 import { erc20Abi } from "@/lib/dripfi-abi";
 import {
   buildApproveInput,
@@ -18,6 +18,7 @@ import {
   getConfiguredToken,
   isConfiguredAddress,
 } from "@/lib/dripfi-config";
+import { createDripfiPublicClient } from "@/lib/dripfi-public-client";
 import type { StrategyDraft } from "@/hooks/use-dripfi-demo-state";
 
 type InterwovenKitShape = {
@@ -64,10 +65,8 @@ export function useDripfiActions() {
   const [isPending, setIsPending] = useState(false);
 
   const publicClient = useMemo(() => {
-    const rpcUrl = dripfiConfig.chain.apis["json-rpc"][0]?.address;
-    if (!rpcUrl) return null;
-    return createPublicClient({ transport: http(rpcUrl) });
-  }, []);
+    return createDripfiPublicClient(Boolean(hexAddress));
+  }, [hexAddress]);
 
   const chainId = dripfiConfig.chain.chain_id;
   const automationRelayerConfigured = isConfiguredAddress(

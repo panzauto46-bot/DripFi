@@ -3,9 +3,10 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useInterwovenKit, useUsernameQuery } from "@initia/interwovenkit-react";
-import { createPublicClient, http, type Address } from "viem";
+import { type Address } from "viem";
 import { dcaVaultAbi, erc20Abi } from "@/lib/dripfi-abi";
 import { dripfiConfig, isConfiguredAddress } from "@/lib/dripfi-config";
+import { createDripfiPublicClient } from "@/lib/dripfi-public-client";
 import {
   formatTokenAmount,
   intervalLabelFromSeconds,
@@ -88,13 +89,8 @@ export function useDripfiLiveState() {
   const isScaffoldMode = !hasLiveContracts;
 
   const publicClient = useMemo(() => {
-    const rpcUrl = dripfiConfig.chain.apis["json-rpc"][0]?.address;
-    if (!rpcUrl) return null;
-
-    return createPublicClient({
-      transport: http(rpcUrl),
-    });
-  }, []);
+    return createDripfiPublicClient(Boolean(hexAddress));
+  }, [hexAddress]);
 
   const strategiesQuery = useQuery({
     queryKey: ["dripfi-strategies", hexAddress, dripfiConfig.contracts.dcaVault],

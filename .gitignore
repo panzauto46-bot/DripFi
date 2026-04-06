@@ -23,6 +23,7 @@ cache/
 broadcast/
 contracts/out/
 contracts/node_modules/
+contracts/deployments/
 
 # App at repo root
 /.next/
@@ -31,3 +32,7 @@ contracts/node_modules/
 /build/
 /.vercel/
 /*.tsbuildinfo
+
+# Local bootstrap / scratch artifacts
+/.tmp/
+/scripts/initia/*.exp

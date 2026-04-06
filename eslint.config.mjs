@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local bootstrap and scratch artifacts can be large and are not app source.
+    ".tmp/**",
   ]),
 ]);
 

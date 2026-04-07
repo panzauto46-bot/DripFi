@@ -149,12 +149,14 @@ export function useDripfiActions() {
         return;
       }
 
-      const allowance = await publicClient.readContract({
-        address: tokenInAddress,
-        abi: erc20Abi,
-        functionName: "allowance",
-        args: [hexAddress as Address, dripfiConfig.contracts.dcaVault as Address],
-      });
+      const allowance = await publicClient
+        .readContract({
+          address: tokenInAddress,
+          abi: erc20Abi,
+          functionName: "allowance",
+          args: [hexAddress as Address, dripfiConfig.contracts.dcaVault as Address],
+        })
+        .catch(() => 0n);
 
       if (allowance < budget) {
         await requestTxBlock({

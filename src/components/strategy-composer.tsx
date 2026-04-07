@@ -9,6 +9,7 @@ import {
 } from "@/lib/dripfi-config";
 import { useDripfiActions } from "@/hooks/use-dripfi-actions";
 import { useDripfiDemoState } from "@/hooks/use-dripfi-demo-state";
+import { useDripfiRpcHealth } from "@/hooks/use-dripfi-rpc-health";
 
 export function StrategyComposer() {
   const { draft, metrics, updateDraft, applyTemplate, isPending } =
@@ -21,10 +22,12 @@ export function StrategyComposer() {
     openRealBridge,
     hasLiveVault,
   } = useDripfiActions();
+  const rpcHealth = useDripfiRpcHealth();
   const fundingToken = getConfiguredToken(draft.tokenIn);
   const targetToken = getConfiguredToken(draft.tokenOut);
   const bridgeMatchesFundingToken =
     dripfiConfig.bridge.assetSymbol.toUpperCase() === fundingToken.symbol.toUpperCase();
+  const canCreateStrategy = hasLiveVault && rpcHealth.isReachable && !isPending && !isActionPending;
 
   return (
     <section className="panel rounded-[1.8rem] p-5 sm:p-6">
@@ -134,7 +137,11 @@ export function StrategyComposer() {
             Live preview
           </p>
           <span className="text-xs text-[var(--muted)]">
-            {hasLiveVault ? "On-chain ready" : "Scaffold mode"}
+            {hasLiveVault
+              ? rpcHealth.isReachable
+                ? "On-chain ready"
+                : rpcHealth.shortLabel
+              : "Scaffold mode"}
           </span>
         </div>
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -146,7 +153,15 @@ export function StrategyComposer() {
           <PreviewRow label="Runway" value={`${metrics.projectedRunway} orders`} />
           <PreviewRow
             label="Mode"
-            value={hasLiveVault ? "Ready for chain" : "Local scaffold"}
+            value={
+              hasLiveVault
+                ? rpcHealth.isReachable
+                  ? rpcHealth.isStablePublicEndpoint
+                    ? "Ready for chain"
+                    : "Temporary endpoint"
+                  : "Endpoint offline"
+                : "Local scaffold"
+            }
           />
         </div>
 
@@ -156,9 +171,16 @@ export function StrategyComposer() {
             onClick={() =>
               createStrategyFromDraft(draft, metrics.intervalInSeconds)
             }
-            className="rounded-full bg-[var(--mint)] px-4 py-2 text-sm font-medium text-slate-950 hover:-translate-y-0.5 hover:bg-[#e7e7e7]"
+            disabled={!canCreateStrategy}
+            className="rounded-full bg-[var(--mint)] px-4 py-2 text-sm font-medium text-slate-950 hover:-translate-y-0.5 hover:bg-[#e7e7e7] disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {isPending || isActionPending ? "Submitting..." : "Create + fund"}
+            {!hasLiveVault
+              ? "Needs live env"
+              : isPending || isActionPending
+                ? "Submitting..."
+                : rpcHealth.isReachable
+                  ? "Create + fund"
+                  : "RPC offline"}
           </button>
           <button
             type="button"
@@ -173,6 +195,12 @@ export function StrategyComposer() {
         <p className="mt-1 text-xs leading-6 text-[var(--muted)]">
           Configured path: {fundingToken.symbol} into {targetToken.symbol}.
         </p>
+        {hasLiveVault && !rpcHealth.isReachable ? (
+          <p className="mt-1 text-xs leading-6 text-[var(--gold)]">{rpcHealth.detail}</p>
+        ) : null}
+        {hasLiveVault && rpcHealth.isReachable && !rpcHealth.isStablePublicEndpoint ? (
+          <p className="mt-1 text-xs leading-6 text-[var(--gold)]">{rpcHealth.detail}</p>
+        ) : null}
         {bridgeMatchesFundingToken ? (
           <p className="mt-1 text-xs leading-6 text-[var(--muted)]">
             Bridge funding targets `{dripfiConfig.bridge.dstDenom}` for {fundingToken.symbol} top-ups.

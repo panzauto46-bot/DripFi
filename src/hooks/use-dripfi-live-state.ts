@@ -7,6 +7,7 @@ import { type Address } from "viem";
 import { dcaVaultAbi, erc20Abi } from "@/lib/dripfi-abi";
 import { dripfiConfig, isConfiguredAddress } from "@/lib/dripfi-config";
 import { createDripfiPublicClient } from "@/lib/dripfi-public-client";
+import { useDripfiRpcHealth } from "@/hooks/use-dripfi-rpc-health";
 import {
   formatTokenAmount,
   intervalLabelFromSeconds,
@@ -80,6 +81,7 @@ function shortenHexAddress(address?: string | null) {
 export function useDripfiLiveState() {
   const { initiaAddress, hexAddress, username } = useInterwovenKit() as InterwovenKitShape;
   const usernameQuery = useUsernameQuery(initiaAddress);
+  const rpcHealth = useDripfiRpcHealth();
 
   const hasLiveContracts =
     isConfiguredAddress(dripfiConfig.contracts.dcaVault) &&
@@ -94,7 +96,7 @@ export function useDripfiLiveState() {
 
   const strategiesQuery = useQuery({
     queryKey: ["dripfi-strategies", hexAddress, dripfiConfig.contracts.dcaVault],
-    enabled: Boolean(publicClient && hexAddress && hasLiveContracts),
+    enabled: Boolean(publicClient && hexAddress && hasLiveContracts && rpcHealth.isReachable),
     refetchInterval: 15_000,
     queryFn: async () => {
       const owner = hexAddress as Address;
@@ -276,6 +278,7 @@ export function useDripfiLiveState() {
     initiaAddress,
     hexAddress,
     hasLiveContracts,
+    rpcHealth,
     isScaffoldMode,
     isLoadingStrategies: strategiesQuery.isLoading,
     strategies: isScaffoldMode ? [...mockStrategies] : (strategiesQuery.data ?? []),

@@ -13,6 +13,7 @@ export default function DashboardPage() {
     strategies,
     activityFeed,
     hasLiveContracts,
+    rpcHealth,
     isScaffoldMode,
     isLoadingStrategies,
     strategiesError,
@@ -63,6 +64,9 @@ export default function DashboardPage() {
             label={hasLiveContracts ? "Live contracts configured" : "Env addresses still missing"}
             tone={hasLiveContracts ? "positive" : "warning"}
           />
+          {hasLiveContracts ? (
+            <StatusPill label={rpcHealth.shortLabel} tone={rpcHealth.tone} />
+          ) : null}
           <StatusPill
             label={autoSignEnabled ? "Automation armed" : "Automation not armed"}
             tone={autoSignEnabled ? "positive" : "neutral"}

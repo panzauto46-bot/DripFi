@@ -3,6 +3,7 @@
 import { useInterwovenKit } from "@initia/interwovenkit-react";
 import { dripfiConfig, isConfiguredAddress } from "@/lib/dripfi-config";
 import { useDripfiActions } from "@/hooks/use-dripfi-actions";
+import { useDripfiRpcHealth } from "@/hooks/use-dripfi-rpc-health";
 
 type WalletPanelProps = {
   title?: string;
@@ -42,6 +43,7 @@ export function WalletPanel({
     enableAutosign,
     disableAutosign,
   } = useDripfiActions();
+  const rpcHealth = useDripfiRpcHealth();
 
   const isConnected = Boolean(initiaAddress);
 
@@ -87,6 +89,7 @@ export function WalletPanel({
           label="Relayer"
           value={automationRelayerConfigured ? "Configured" : "Missing env"}
         />
+        <StatRow label="JSON-RPC" value={rpcHealth.shortLabel} />
       </div>
 
       <div className="mt-5 flex flex-wrap gap-2">
@@ -118,6 +121,7 @@ export function WalletPanel({
       </div>
 
       <p className="mt-3 text-xs leading-6 text-[var(--muted)]">{status}</p>
+      <p className="mt-1 text-xs leading-6 text-[var(--muted)]">{rpcHealth.detail}</p>
       {autoSignGrantee ? (
         <p className="mt-1 text-xs leading-6 text-[var(--gold)]">
           Grantee: {autoSignGrantee}

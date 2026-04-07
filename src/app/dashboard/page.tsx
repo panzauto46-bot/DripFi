@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { StrategyComposer } from "@/components/strategy-composer";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { WalletPanel } from "@/components/wallet-panel";
 import { useDripfiLiveState } from "@/hooks/use-dripfi-live-state";
 import { useDripfiActions } from "@/hooks/use-dripfi-actions";
@@ -44,6 +45,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
+            <ThemeToggle />
             <Link
               href="/"
               className="rounded-full border border-white/12 px-4 py-2 text-center text-sm text-[var(--ink)] hover:-translate-y-0.5 hover:border-[var(--gold)] hover:text-[var(--gold)]"
@@ -116,7 +118,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-[1.5rem] border border-white/8 bg-[#090909] px-4 py-4">
+              <div className="overflow-hidden rounded-[1.5rem] border border-white/8 bg-black/20 px-4 py-4">
                 <div className="mb-4 flex items-center justify-between text-xs uppercase tracking-[0.24em] text-[var(--muted)]">
                   <span className="font-mono">Value curve</span>
                   <span className="font-mono text-[var(--mint)]">Live sync</span>

@@ -243,7 +243,7 @@ function TokenSelectCard({
         className="mt-2 w-full bg-transparent text-base font-medium text-[var(--ink)] outline-none"
       >
         {dripfiTokenOptions.map((token) => (
-          <option key={token.key} value={token.key} className="bg-[#090909] text-[var(--ink)]">
+          <option key={token.key} value={token.key}>
             {token.label}
           </option>
         ))}

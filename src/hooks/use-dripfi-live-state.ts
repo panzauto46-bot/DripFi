@@ -6,6 +6,7 @@ import { useInterwovenKit, useUsernameQuery } from "@initia/interwovenkit-react"
 import { type Address } from "viem";
 import { dcaVaultAbi, erc20Abi } from "@/lib/dripfi-abi";
 import { dripfiConfig, isConfiguredAddress } from "@/lib/dripfi-config";
+import { normalizeDripfiError } from "@/lib/dripfi-errors";
 import { createDripfiPublicClient } from "@/lib/dripfi-public-client";
 import { useDripfiRpcHealth } from "@/hooks/use-dripfi-rpc-health";
 import {
@@ -91,8 +92,8 @@ export function useDripfiLiveState() {
   const isScaffoldMode = !hasLiveContracts;
 
   const publicClient = useMemo(() => {
-    return createDripfiPublicClient(Boolean(hexAddress));
-  }, [hexAddress]);
+    return createDripfiPublicClient();
+  }, []);
 
   const strategiesQuery = useQuery({
     queryKey: ["dripfi-strategies", hexAddress, dripfiConfig.contracts.dcaVault],
@@ -284,7 +285,7 @@ export function useDripfiLiveState() {
     strategies: isScaffoldMode ? [...mockStrategies] : (strategiesQuery.data ?? []),
     activityFeed,
     strategiesError:
-      strategiesQuery.error instanceof Error ? strategiesQuery.error.message : null,
+      strategiesQuery.error ? normalizeDripfiError(strategiesQuery.error) : null,
     refetchStrategies: strategiesQuery.refetch,
   };
 }

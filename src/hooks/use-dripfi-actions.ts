@@ -18,6 +18,7 @@ import {
   getConfiguredToken,
   isConfiguredAddress,
 } from "@/lib/dripfi-config";
+import { normalizeDripfiError } from "@/lib/dripfi-errors";
 import { createDripfiPublicClient } from "@/lib/dripfi-public-client";
 import type { StrategyDraft } from "@/hooks/use-dripfi-demo-state";
 
@@ -65,8 +66,8 @@ export function useDripfiActions() {
   const [isPending, setIsPending] = useState(false);
 
   const publicClient = useMemo(() => {
-    return createDripfiPublicClient(Boolean(hexAddress));
-  }, [hexAddress]);
+    return createDripfiPublicClient();
+  }, []);
 
   const chainId = dripfiConfig.chain.chain_id;
   const automationRelayerConfigured = isConfiguredAddress(
@@ -192,7 +193,7 @@ export function useDripfiActions() {
       setStatus(`Strategy created and funded in ${tokenInConfig.symbol}.`);
       await invalidateKeys(queryClient);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to create strategy.");
+      setStatus(normalizeDripfiError(error));
     } finally {
       setIsPending(false);
     }
@@ -221,7 +222,7 @@ export function useDripfiActions() {
       setStatus(`${action} confirmed.`);
       await invalidateKeys(queryClient);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : `Failed to ${action}.`);
+      setStatus(normalizeDripfiError(error));
     } finally {
       setIsPending(false);
     }
@@ -276,7 +277,7 @@ export function useDripfiActions() {
           : "Auto-sign enabled. Add an automation relayer env to unlock background execution.",
       );
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to enable auto-sign.");
+      setStatus(normalizeDripfiError(error));
     } finally {
       setIsPending(false);
     }
@@ -293,7 +294,7 @@ export function useDripfiActions() {
       await autoSign.disable(chainId);
       setStatus("Auto-sign disabled.");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to disable auto-sign.");
+      setStatus(normalizeDripfiError(error));
     } finally {
       setIsPending(false);
     }

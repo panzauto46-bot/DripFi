@@ -54,7 +54,7 @@ export default function DashboardPage() {
             </Link>
             <a
               href="#strategy-builder"
-              className="rounded-full bg-[var(--mint)] px-5 py-2.5 text-sm font-medium text-slate-950 hover:-translate-y-0.5 hover:bg-[#e7e7e7]"
+              className="button-primary rounded-full px-5 py-2.5 text-sm font-medium hover:-translate-y-0.5"
             >
               Create new strategy
             </a>

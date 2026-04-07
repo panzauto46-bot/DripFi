@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useInterwovenKit } from "@initia/interwovenkit-react";
 import { dripfiConfig, isConfiguredAddress } from "@/lib/dripfi-config";
 import { useDripfiActions } from "@/hooks/use-dripfi-actions";
@@ -15,6 +16,7 @@ type InterwovenKitShape = {
   username?: string | null;
   openConnect: () => void;
   openWallet: () => void;
+  disconnect: () => void;
 };
 
 function shortenAddress(address?: string) {
@@ -31,7 +33,7 @@ export function WalletPanel({
   title = "Wallet & bridge",
   compact = false,
 }: WalletPanelProps) {
-  const { initiaAddress, username, openConnect, openWallet } =
+  const { initiaAddress, username, openConnect, openWallet, disconnect } =
     useInterwovenKit() as InterwovenKitShape;
   const {
     status,
@@ -44,6 +46,7 @@ export function WalletPanel({
     disableAutosign,
   } = useDripfiActions();
   const rpcHealth = useDripfiRpcHealth();
+  const [walletMessage, setWalletMessage] = useState<string | null>(null);
 
   const isConnected = Boolean(initiaAddress);
 
@@ -100,12 +103,24 @@ export function WalletPanel({
               return;
             }
 
+            setWalletMessage(null);
             openConnect();
           }}
           className="button-primary rounded-full px-4 py-2 text-sm font-medium hover:-translate-y-0.5"
         >
           {isConnected ? "Open wallet" : "Connect wallet"}
         </button>
+        {isConnected ? (
+          <button
+            onClick={() => {
+              disconnect();
+              setWalletMessage("Wallet disconnected.");
+            }}
+            className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-[var(--muted)] hover:-translate-y-0.5 hover:border-[var(--gold)] hover:text-[var(--gold)]"
+          >
+            Disconnect wallet
+          </button>
+        ) : null}
         <button
           onClick={() => openRealBridge()}
           className="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-medium text-[var(--ink)] hover:-translate-y-0.5 hover:border-[var(--gold)] hover:text-[var(--gold)]"
@@ -120,7 +135,9 @@ export function WalletPanel({
         </button>
       </div>
 
-      <p className="mt-3 text-xs leading-6 text-[var(--muted)]">{status}</p>
+      <p className="mt-3 text-xs leading-6 text-[var(--muted)]">
+        {!isConnected && walletMessage ? walletMessage : status}
+      </p>
       <p className="mt-1 text-xs leading-6 text-[var(--muted)]">{rpcHealth.detail}</p>
       {autoSignGrantee ? (
         <p className="mt-1 text-xs leading-6 text-[var(--gold)]">
